@@ -5,8 +5,10 @@
 <p align="center">Design with an elephant. Review with a goldfish.</p>
 
 <p align="center">
+  <a href="#prerequisites">Prerequisites</a> &ensp;·&ensp;
   <a href="#install">Install</a> &ensp;·&ensp;
   <a href="#try-your-first-design">Quickstart</a> &ensp;·&ensp;
+  <a href="#full-workflow">Full Workflow</a> &ensp;·&ensp;
   <a href="docs/getting_started.md">Documentation</a> &ensp;·&ensp;
   <a href="https://egm.dev">Website</a>
 </p>
@@ -19,9 +21,19 @@ Thousands of Google engineers use EGM, an open-source plugin, to draft specs wit
 
 Use it when a feature needs design decisions before implementation. For a small, clear bug fix, use your normal coding workflow.
 
+## Prerequisites
+
+Before installing EGM, make sure you have:
+
+- **A supported coding agent** — Antigravity, Claude Code, Claude Cowork, Codex, ChatGPT Work, or omp.
+- **Subagent support** — EGM's Goldfish reviews spawn fresh-context subagents. If your coding agent cannot create subagents, reviews will not run. See [supported environments](docs/harnesses.md#support-status--contributing-other-harnesses) for details.
+- **A project with a git repository** — EGM writes design artifacts (briefs, drafts, reports) to your working directory. A version-controlled project keeps these artifacts reviewable and diffable.
+
+> **Tip:** If you have never used an LLM for software design, read [Dave Rensin's original essay](https://medium.com/@drensin/elephants-goldfish-and-the-new-golden-age-of-software-engineering-c33641a48874) first. Try the conversational sequence a few times before adopting the plugin — it is free, requires no installation, and builds intuition for working with LLMs.
+
 ## Install
 
-Choose your coding agent. Install the complete plugin so its skills can read the reviewer prompts and document standards.
+Choose your coding agent. Install the **complete plugin** so its skills can read the reviewer prompts and document standards. Skill-only installers that copy `skills/` alone will break EGM.
 
 ### Antigravity
 
@@ -36,6 +48,10 @@ claude plugin marketplace add google/elephant-goldfish-model
 claude plugin install egm@egm
 ```
 
+### Claude Cowork
+
+Install from claude.ai/plugins or the Cowork plugin panel via the marketplace search for `google/elephant-goldfish-model`.
+
 ### Codex
 
 ```sh
@@ -43,13 +59,25 @@ codex plugin marketplace add google/elephant-goldfish-model
 codex plugin add egm@egm
 ```
 
-Start a new session after installation. For **Claude Cowork** and **ChatGPT Work**, see the [setup guide](docs/harnesses.md).
+### ChatGPT Work
+
+For personal testing: Plugins > Add > Upload plugin archive.
+For workspace import: Admin > Plugins > Add > Import marketplace, use repo URL `https://github.com/google/elephant-goldfish-model`, path `.agents/plugins`.
+
+### omp
+
+```sh
+omp plugin marketplace add google/elephant-goldfish-model
+omp plugin install egm@egm
+```
+
+> **After installation:** Start a new session in your coding agent. Verify the install by running `/egm-brainstorm` (or `/egm:egm-brainstorm` in Antigravity/Claude Code) — it should begin an interactive ideation session.
 
 ## Try your first design
 
 Open your project in your coding agent and choose a feature that needs design decisions. This example adds webhook delivery: what should happen when a delivery fails, or the same event arrives twice?
 
-The commands below are shown without a prefix. In Antigravity (agy CLI) and Claude Code, add the `/egm:` prefix, for example `/egm:egm-brainstorm`. In Codex, select the corresponding EGM skill from the skill picker. Brainstorming and review require a session that can create fresh subagents.
+The commands below are shown without a prefix. In Antigravity (agy CLI) and Claude Code, add the `/egm:` prefix, for example `/egm:egm-brainstorm`. In Codex, select the corresponding EGM skill from the skill picker. In omp, skills are invoked as `/skill:egm-<command>`. Brainstorming and review require a session that can create fresh subagents.
 
 <img src="skills/egm-brainstorm/assets/icon.svg" width="20" height="20" align="top" alt=""> **Explore the idea**
 
@@ -78,6 +106,58 @@ Use the draft path returned by the agent.
 Fresh reviewers check the design, its clarity, its fit with the code, and its implementation plan. Choose which findings to address. When you approve the design, ask your coding agent to implement it.
 
 See the [workflow guide](docs/getting_started.md) for the full process, including saving approved specifications under `docs/designs/`.
+
+## Full workflow
+
+The quickstart above covers the core loop. Here is the complete end-to-end workflow:
+
+### 1. Brainstorm
+
+Run `/egm-brainstorm` with a description of your feature or problem. The Elephant agent explores the idea with you, then spawns a swarm of Goldfish reviewers to stress-test the concept. Output: `concepts_brief.md`.
+
+### 2. Draft
+
+Run `/egm-draft`. The Elephant reads the concept brief and produces a formal design document section by section, pausing after each for your feedback. Output: `design_draft.md`.
+
+### 3. Review
+
+Run `/egm-review design_draft.md`. Five independent Goldfish reviewers examine the draft without any of the prior conversation context. They check for: missing assumptions, unclear requirements, implementation risks, structural issues, and design-code fit. A synthesizer compiles the findings. Take what is relevant, discard the rest.
+
+### 4. Resolve
+
+Run `/egm-resolve` to work through the review findings interactively. The agent helps you decide which findings to address and updates the draft.
+
+### 5. Human review
+
+Open a Pull Request with your finalized design document. EGM does not replace human oversight. Human reviews ensure long-term product consistency and prioritization.
+
+### 6. Implement
+
+Tell your coding agent to build to the plan. The design document should contain the implementation details. If the agent makes minor mistakes, fix them directly or ask for point fixes. If the output is far off, update the design and try again.
+
+### 7. Drift detection
+
+Run `/egm-drift-report` periodically (weekly is recommended) to check whether your design documents still match the codebase. Any detected divergence should be reconciled — update either the docs or the code.
+
+## Configuration
+
+### Artifact directory
+
+By default, EGM writes briefs, drafts, and reports to your working directory. To write to a custom directory, add this line to your agent's instructions file (`CLAUDE.md`, `AGENTS.md`, or equivalent):
+
+```text
+EGM artifact directory: .dev/docs
+```
+
+A relative path is relative to the working directory. Add the folder to `.gitignore` to keep artifacts out of version control if desired.
+
+### Project context skill (optional)
+
+Create a custom `<project>-elephant` skill for your project to give the Elephant quick access to important context — code paths, design documents, and architectural history. See the [getting started guide](docs/getting_started.md#project-context-skill-optional) for details.
+
+### Bootstrapping an existing codebase
+
+Run `/egm-bootstrap <path/to/project>` to auto-generate README files across your directory tree using a bottom-up recursive summarization. This gives Elephants structured context to navigate your codebase. See the [bootstrapping guide](docs/getting_started.md#bootstrapping-existing-codebases) for the recommended project layout.
 
 ## How it works
 
@@ -109,13 +189,26 @@ You can use each skill when you need it. You do not have to follow the full sequ
   </tbody>
 </table>
 
+## Troubleshooting
+
+| Problem | Cause | Fix |
+| --- | --- | --- |
+| `/egm-brainstorm` not recognized | Plugin not installed or session not restarted | Reinstall the plugin and start a new session |
+| Goldfish review stops immediately | Agent does not support subagent spawning | Switch to a supported harness (Antigravity, Claude Code, or Codex) or use direct dispatch |
+| Skills cannot find reviewer prompts | Skill-only install (missing `agents/` and `resources/`) | Reinstall the full plugin, not just the `skills/` directory |
+| Artifacts written to wrong directory | No artifact directory configured | Add `EGM artifact directory: <path>` to your agent instructions file |
+| Design doc is too vague for implementation | Brainstorm or review step was skipped | Run the full workflow: brainstorm → draft → review → resolve before implementing |
+
+See the [FAQ](docs/faq.md) for more questions about the process and its trade-offs.
+
 ## Learn more
 
 - [Getting started](docs/getting_started.md): the workflow and project layout.
 - [Setup](docs/harnesses.md): installation, agent capabilities, and known limits.
+- [FAQ](docs/faq.md): common questions about the process and trade-offs.
 - [Architecture](https://github.com/google/elephant-goldfish-model/blob/main/docs/designs/architecture.md): how skills and reviewers fit together.
 - [Testing](https://github.com/google/elephant-goldfish-model/blob/main/TESTING.md): checks, execution records, and verification limits.
-- [Dave Rensin’s original essay](https://medium.com/@drensin/elephants-goldfish-and-the-new-golden-age-of-software-engineering-c33641a48874): the ideas behind EGM.
+- [Dave Rensin's original essay](https://medium.com/@drensin/elephants-goldfish-and-the-new-golden-age-of-software-engineering-c33641a48874): the ideas behind EGM.
 
 ## Contribute
 
